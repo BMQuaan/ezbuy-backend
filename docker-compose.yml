@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+
+  db:
+    image: mysql:8.0.42
+    container_name: ezbuy-mysql
+    restart: unless-stopped
+    env_file: ./.env
+    # environment:
+    #   - MYSQL_DATABASE=root
+    #   - MYSQL_ROOT_PASSWORD=quan123
+    # ports:
+    #   - "3306:3306" 
+    volumes:
+      # - mysql-data:/var/lib/mysql 
+      - ./ezbuy/database/ezbuy_database.sql:/database/ezbuy_database.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # # 2. Service AI (FastAPI)
+  # ai-app:
+  #   container_name: ezbuy-ai-service
+  #   build:
+  #     context: ./ai-service 
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "8000:8000" 
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - db 
+
+  # 3. Service Backend (Spring Boot)
+  spring-app:
+    container_name: ezbuy-spring-service
+    build:
+      context: ./ezbuy
+      dockerfile: Dockerfile 
+    ports:
+      - "8081:8081" 
+    restart: unless-stopped
+    env_file: ./.env
+    depends_on:
+      db:
+        condition: service_healthy
+      # - ai-app  
+    
+volumes:
+  mysql-data:
+
+
+# RUN
+
+# docker-compose up -d
+# docker cp "D:\Tailieu\tai lieu\dump.sql" ezbuy-mysql:/dump.sql
+# docker exec -it ezbuy-mysql bash
+# mysql -u root -p
+#   CREATE DATABASE IF NOT EXISTS ezbuy;
+#   USE ezbuy;
+#   SOURCE /dump.sql;
+
+# docker compose down -v
+# docker compose up -d --build

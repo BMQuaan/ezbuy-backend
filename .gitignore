@@ -1,0 +1,75 @@
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+### Java ###
+*.class
+*.jar
+*.war
+*.ear
+*.log
+hs_err_pid*
+
+### Maven ###
+target/
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/timing.properties
+
+### Spring Boot ###
+# Logs
+logs/
+*.log
+
+# Database
+*.db
+*.h2.db
+*.mv.db
+
+# Spring config
+application-*.yml
+application-*.yaml
+application-*.properties
+
+### VSCode ###
+.vscode/
+.history/
+*.code-workspace
+
+### IntelliJ IDEA (nếu có mở song song) ###
+.idea/
+*.iml
+out/
+
+.env
+.env.*
+*.env
