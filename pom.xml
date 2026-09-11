@@ -8,11 +8,11 @@
 		<version>3.5.6</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>com.ezphone</groupId>
-	<artifactId>ezphone</artifactId>
+	<groupId>com.ezbuy</groupId>
+	<artifactId>ezbuy</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>ezphone</name>
-	<description>Demo project for Spring Boot</description>
+	<name>ezbuy</name>
+	<description>EZBuy - E-Commerce Backend Platform</description>
 	<url/>
 	<licenses>
 		<license/>

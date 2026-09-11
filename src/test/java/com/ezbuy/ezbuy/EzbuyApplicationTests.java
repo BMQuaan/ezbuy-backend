@@ -1,10 +1,10 @@
-package com.ezphone.ezphone;
+package com.ezbuy.ezbuy;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class EzphoneApplicationTests {
+class EzbuyApplicationTests {
 
 	@Test
 	void contextLoads() {
