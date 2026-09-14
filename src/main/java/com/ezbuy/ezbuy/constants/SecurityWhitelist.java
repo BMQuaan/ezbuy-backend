@@ -20,6 +20,7 @@ public final class SecurityWhitelist {
             "/api/promotions/**",
             "/api/promotions/check",
             "/api/manufacturers",
-            "/api/payments/vnpay-callback"
+            "/api/payments/vnpay-callback",
+            "/api/payments/vnpay-ipn"
     };
 }

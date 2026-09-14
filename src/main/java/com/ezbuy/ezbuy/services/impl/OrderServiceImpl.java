@@ -133,10 +133,11 @@ public class OrderServiceImpl implements OrderService {
         
             long totalAmountVND = totalAmountUSD.multiply(EXCHANGE_RATE).longValue();
             
+            String vnp_TxnRef = savedOrder.getId() + "_" + System.currentTimeMillis();
             paymentUrl = vnpayService.createPaymentUrl(
                     totalAmountVND, 
                     "Pay for order " + savedOrder.getId(), 
-                    savedOrder.getId().toString(), 
+                    vnp_TxnRef, 
                     httpRequest
             );
         }

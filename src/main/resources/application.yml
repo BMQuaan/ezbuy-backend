@@ -41,6 +41,7 @@ app:
     refresh-token-expiration: 604800000
   cors:
     allowed-origins: "http://localhost:3000"
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
 server:
   port: 8081
 
@@ -59,4 +60,5 @@ vnpay:
   hash-secret: ${VNPAY_HASH_SECRET}
   pay-url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
   return-url: http://localhost:8081/api/payments/vnpay-callback
-  # ipn-url: http://localhost:8081/api/payments/vnpay-ipn
+  ipn-url: http://localhost:8081/api/payments/vnpay-ipn
+
