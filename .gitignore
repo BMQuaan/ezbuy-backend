@@ -59,6 +59,8 @@ logs/
 application-*.yml
 application-*.yaml
 application-*.properties
+!application-docker.yml
+
 
 ### VSCode ###
 .vscode/
@@ -73,3 +75,5 @@ out/
 .env
 .env.*
 *.env
+!.env.example
+

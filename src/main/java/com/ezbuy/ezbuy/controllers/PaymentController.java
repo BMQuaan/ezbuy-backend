@@ -38,8 +38,8 @@ public class PaymentController {
     @Value("${app.frontend-url:http://localhost:3000}")
     private String frontendUrl;
 
-    @Value("${vnpay.currency:USD}")
-    private String vnpayCurrency = "USD";
+    @Value("${vnpay.currency:VND}")
+    private String vnpayCurrency = "VND";
 
     /**
      * Client-side return URL: VNPay redirects user's browser back to this endpoint

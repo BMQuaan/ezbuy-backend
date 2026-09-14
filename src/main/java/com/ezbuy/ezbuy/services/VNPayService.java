@@ -22,8 +22,8 @@ public class VNPayService {
     private String vnp_TmnCode;
     @Value("${vnpay.hash-secret}")
     private String vnp_HashSecret;
-    @Value("${vnpay.currency:USD}")
-    private String vnp_CurrCode;
+    @Value("${vnpay.currency:VND}")
+    private String vnp_CurrCode = "VND";
 
     public String createPaymentUrl(long amount, String orderInfo, String orderRef, HttpServletRequest request) {
         String vnp_Version = "2.1.0";
@@ -38,7 +38,7 @@ public class VNPayService {
         vnp_TmnCode = vnp_TmnCode != null ? vnp_TmnCode.trim() : "";
         vnp_Params.put("vnp_TmnCode", vnp_TmnCode);
         vnp_Params.put("vnp_Amount", String.valueOf(amount * 100)); 
-        vnp_Params.put("vnp_CurrCode", vnp_CurrCode != null ? vnp_CurrCode : "USD");
+        vnp_Params.put("vnp_CurrCode", vnp_CurrCode != null ? vnp_CurrCode : "VND");
         vnp_Params.put("vnp_TxnRef", vnp_TxnRef);
         vnp_Params.put("vnp_OrderInfo", orderInfo);
         vnp_Params.put("vnp_OrderType", vnp_OrderType);

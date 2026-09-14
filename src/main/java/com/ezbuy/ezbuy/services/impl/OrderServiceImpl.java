@@ -55,8 +55,8 @@ public class OrderServiceImpl implements OrderService {
     private final VNPayService vnpayService;
     private final PaymentTransactionRepository paymentTransactionRepository;
 
-    @Value("${vnpay.currency:USD}")
-    private String vnpayCurrency = "USD";
+    @Value("${vnpay.currency:VND}")
+    private String vnpayCurrency = "VND";
 
     private static final BigDecimal EXCHANGE_RATE = new BigDecimal("25300");
 

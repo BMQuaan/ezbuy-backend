@@ -1,66 +1,61 @@
-version: '3.8'
 
 services:
-
+  # ==========================================
+  # 1. MySQL Database Service
+  # ==========================================
   db:
     image: mysql:8.0.42
     container_name: ezbuy-mysql
     restart: unless-stopped
-    env_file: ./.env
-    # environment:
-    #   - MYSQL_DATABASE=root
-    #   - MYSQL_ROOT_PASSWORD=quan123
-    # ports:
-    #   - "3306:3306" 
+    env_file:
+      - ./.env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ezbuy
+    ports:
+      - "3306:3306"
     volumes:
-      # - mysql-data:/var/lib/mysql 
-      - ./ezbuy/database/ezbuy_database.sql:/database/ezbuy_database.sql
+      - mysql-data:/var/lib/mysql
+      # Automatically initializes the database schema and sample data on initial container creation
+      - ./database/ezbuy_database.sql:/docker-entrypoint-initdb.d/ezbuy_database.sql:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 5s
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${DB_PASSWORD}"]
+      interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 5
+      start_period: 30s
+    networks:
+      - ezbuy-network
 
-  # # 2. Service AI (FastAPI)
-  # ai-app:
-  #   container_name: ezbuy-ai-service
-  #   build:
-  #     context: ./ai-service 
-  #     dockerfile: Dockerfile
-  #   ports:
-  #     - "8000:8000" 
-  #   restart: unless-stopped
-  #   depends_on:
-  #     - db 
-
-  # 3. Service Backend (Spring Boot)
+  # ==========================================
+  # 2. Spring Boot Backend Service
+  # ==========================================
   spring-app:
     container_name: ezbuy-spring-service
     build:
-      context: ./ezbuy
-      dockerfile: Dockerfile 
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - "8081:8081" 
+      - "8081:8081"
     restart: unless-stopped
-    env_file: ./.env
+    env_file:
+      - ./.env
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/ezbuy?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
     depends_on:
       db:
         condition: service_healthy
-      # - ai-app  
-    
+    networks:
+      - ezbuy-network
+
 volumes:
   mysql-data:
+    name: ezbuy-mysql-data
 
-
-# RUN
-
-# docker-compose up -d
-# docker cp "D:\Tailieu\tai lieu\dump.sql" ezbuy-mysql:/dump.sql
-# docker exec -it ezbuy-mysql bash
-# mysql -u root -p
-#   CREATE DATABASE IF NOT EXISTS ezbuy;
-#   USE ezbuy;
-#   SOURCE /dump.sql;
-
-# docker compose down -v
-# docker compose up -d --build
+networks:
+  ezbuy-network:
+    name: ezbuy-network
+    driver: bridge
