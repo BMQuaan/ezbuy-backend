@@ -38,6 +38,9 @@ public class PaymentController {
     @Value("${app.frontend-url:http://localhost:3000}")
     private String frontendUrl;
 
+    @Value("${vnpay.currency:USD}")
+    private String vnpayCurrency = "USD";
+
     /**
      * Client-side return URL: VNPay redirects user's browser back to this endpoint
      */
@@ -174,14 +177,13 @@ public class PaymentController {
     }
 
     private boolean isAmountValid(Order order, String vnpAmountParam) {
-        if (vnpAmountParam == null || vnpAmountParam.isEmpty()) {
-            return false;
-        }
+        if (vnpAmountParam == null) return false;
         try {
-            long receivedAmountVND = Long.parseLong(vnpAmountParam) / 100;
-            long expectedAmountVND = order.getTotalAmount().multiply(EXCHANGE_RATE).longValue();
-            // Allow up to 10 VND rounding discrepancy due to floating exchange rate conversion
-            return Math.abs(receivedAmountVND - expectedAmountVND) <= 10;
+            long receivedAmount = Long.parseLong(vnpAmountParam) / 100;
+            long expectedAmount = "USD".equalsIgnoreCase(vnpayCurrency)
+                    ? order.getTotalAmount().longValue()
+                    : order.getTotalAmount().multiply(EXCHANGE_RATE).longValue();
+            return Math.abs(receivedAmount - expectedAmount) <= 10;
         } catch (NumberFormatException e) {
             return false;
         }

@@ -32,6 +32,7 @@ public interface OrderMapper {
         }
     }
 
+    @Mapping(source = "payment.method", target = "paymentMethod")
     OrderSummaryResponse toOrderSummaryResponse(Order order);
     
     @Mapping(source = "user.email", target = "userEmail")

@@ -2,6 +2,7 @@ package com.ezbuy.ezbuy.services.impl;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -53,6 +54,9 @@ public class OrderServiceImpl implements OrderService {
     private final CartCleanupService cartCleanupService;
     private final VNPayService vnpayService;
     private final PaymentTransactionRepository paymentTransactionRepository;
+
+    @Value("${vnpay.currency:USD}")
+    private String vnpayCurrency = "USD";
 
     private static final BigDecimal EXCHANGE_RATE = new BigDecimal("25300");
 
@@ -136,12 +140,13 @@ public class OrderServiceImpl implements OrderService {
         
         if (payment.getMethod().equalsIgnoreCase("VNPAY")) {
             BigDecimal totalAmountUSD = savedOrder.getTotalAmount();
-        
-            long totalAmountVND = totalAmountUSD.multiply(EXCHANGE_RATE).longValue();
+            long amount = "USD".equalsIgnoreCase(vnpayCurrency)
+                    ? totalAmountUSD.longValue()
+                    : totalAmountUSD.multiply(EXCHANGE_RATE).longValue();
             
             String vnp_TxnRef = savedOrder.getId() + "_" + System.currentTimeMillis();
             paymentUrl = vnpayService.createPaymentUrl(
-                    totalAmountVND, 
+                    amount, 
                     "Pay for order " + savedOrder.getId(), 
                     vnp_TxnRef, 
                     httpRequest
@@ -287,12 +292,14 @@ public class OrderServiceImpl implements OrderService {
             throw new IllegalStateException("This order was not paid for via VNPay.");
         }
         
-        if (order.getVnpTransactionNo() != null) {
+        if (order.getVnpTransactionNo() != null || order.getPaymentStatus() == PaymentStatus.PAID) {
             throw new IllegalStateException("This order has already been paid for.");
         }
 
         String vnp_TxnRef = order.getId() + "_" + System.currentTimeMillis();
-        long amount = order.getTotalAmount().multiply(EXCHANGE_RATE).longValue();
+        long amount = "USD".equalsIgnoreCase(vnpayCurrency)
+                ? order.getTotalAmount().longValue()
+                : order.getTotalAmount().multiply(EXCHANGE_RATE).longValue();
         String paymentUrl = vnpayService.createPaymentUrl(
                 amount, 
                 "Repay the order " + order.getId(), 

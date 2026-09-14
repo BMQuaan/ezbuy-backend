@@ -50,7 +50,7 @@ class VNPayServiceTest {
         assertThat(url).contains("vnp_TmnCode=" + tmnCode);
         assertThat(url).contains("vnp_Amount=10000000"); // 100000 * 100
         assertThat(url).contains("vnp_TxnRef=10_1725000000");
-        assertThat(url).contains("vnp_CurrCode=VND");
+        assertThat(url).contains("vnp_CurrCode=USD");
         assertThat(url).contains("vnp_SecureHash=");
     }
 

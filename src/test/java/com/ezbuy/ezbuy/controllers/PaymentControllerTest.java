@@ -67,9 +67,9 @@ class PaymentControllerTest {
         mockMvc.perform(get("/api/payments/vnpay-callback")
                         .param("vnp_TxnRef", "101_1725000000")
                         .param("vnp_TransactionNo", "14555666")
-                        .param("vnp_Amount", "253000000")
+                        .param("vnp_Amount", "10000")
                         .param("vnp_BankCode", "NCB")
-                        .param("vnp_ResponseCode", "00")) // 2,530,000 * 100
+                        .param("vnp_ResponseCode", "00")) // 100 USD * 100
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.data.paymentStatus").value("PAID"))
@@ -88,7 +88,7 @@ class PaymentControllerTest {
         mockMvc.perform(get("/api/payments/vnpay-callback")
                         .param("vnp_TxnRef", "101_1725000000")
                         .param("vnp_TransactionNo", "14555666")
-                        .param("vnp_Amount", "100000")) // 1,000 VND instead of 2,530,000 VND
+                        .param("vnp_Amount", "5000")) // 50 USD instead of 100 USD
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.message").value("Invalid payment amount"));
@@ -105,7 +105,7 @@ class PaymentControllerTest {
 
         mockMvc.perform(get("/api/payments/vnpay-callback")
                         .param("vnp_TxnRef", "101_1725000000")
-                        .param("vnp_Amount", "253000000")
+                        .param("vnp_Amount", "10000")
                         .param("vnp_ResponseCode", "24"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
@@ -146,7 +146,7 @@ class PaymentControllerTest {
         mockMvc.perform(get("/api/payments/vnpay-ipn")
                         .param("vnp_TxnRef", "101_1725000000")
                         .param("vnp_TransactionNo", "14555666")
-                        .param("vnp_Amount", "253000000"))
+                        .param("vnp_Amount", "10000"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.RspCode").value("00"))
                 .andExpect(jsonPath("$.Message").value("Confirm Success"));
@@ -162,7 +162,7 @@ class PaymentControllerTest {
 
         mockMvc.perform(get("/api/payments/vnpay-ipn")
                         .param("vnp_TxnRef", "101_1725000000")
-                        .param("vnp_Amount", "100000")) // Mismatched amount
+                        .param("vnp_Amount", "5000")) // Mismatched amount
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.RspCode").value("04"))
                 .andExpect(jsonPath("$.Message").value("Invalid Amount"));
@@ -196,7 +196,7 @@ class PaymentControllerTest {
         mockMvc.perform(get("/api/payments/vnpay-ipn")
                         .param("vnp_TxnRef", "101_1725000000")
                         .param("vnp_TransactionNo", "14555666")
-                        .param("vnp_Amount", "253000000"))
+                        .param("vnp_Amount", "10000"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.RspCode").value("02"))
                 .andExpect(jsonPath("$.Message").value("Order already confirmed"));
