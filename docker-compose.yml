@@ -13,7 +13,7 @@ services:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
       MYSQL_DATABASE: ezbuy
     ports:
-      - "3306:3306"
+      - "${MYSQL_PORT:-3307}:3306"
     volumes:
       - mysql-data:/var/lib/mysql
       # Automatically initializes the database schema and sample data on initial container creation
