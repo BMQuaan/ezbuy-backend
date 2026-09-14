@@ -1,5 +1,7 @@
 package com.ezbuy.ezbuy.controllers;
 
+import com.ezbuy.ezbuy.dtos.response.ApiResponse;
+import com.ezbuy.ezbuy.dtos.response.PaymentResultResponse;
 import com.ezbuy.ezbuy.entities.Order;
 import com.ezbuy.ezbuy.enums.PaymentStatus;
 import com.ezbuy.ezbuy.repositories.OrderRepository;
@@ -40,48 +42,63 @@ public class PaymentController {
      * Client-side return URL: VNPay redirects user's browser back to this endpoint
      */
     @GetMapping("/vnpay-callback")
-    public ResponseEntity<?> paymentCallback(HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<?>> paymentCallback(HttpServletRequest request) {
         int paymentStatus = vnpayService.orderReturn(request);
         Map<String, String> vnpParams = extractParams(request);
 
+        if (paymentStatus == -1) {
+            log.error("VNPay callback checksum signature verification failed!");
+            return ResponseEntity.badRequest().body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), "Invalid Checksum Signature"));
+        }
+
         String vnp_TxnRef = request.getParameter("vnp_TxnRef");
         String vnp_TransactionNo = request.getParameter("vnp_TransactionNo");
+        String vnp_BankCode = request.getParameter("vnp_BankCode");
+        String vnp_ResponseCode = request.getParameter("vnp_ResponseCode");
 
         Integer orderId = parseOrderId(vnp_TxnRef);
         if (orderId == null) {
-            return ResponseEntity.badRequest().body("Order reference is invalid or missing in callback");
+            return ResponseEntity.badRequest().body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), "Order reference is invalid or missing in callback"));
         }
-
-        String targetUrl = frontendUrl + "/profile/purchasehistory/" + orderId;
 
         Order order = orderRepository.findById(orderId).orElse(null);
         if (order == null) {
-            return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(URI.create(targetUrl + "?paymentStatus=failed&reason=order_not_found"))
-                    .build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(HttpStatus.NOT_FOUND.value(), "Order not found with id: " + orderId));
         }
 
         // Verify amount
         if (!isAmountValid(order, request.getParameter("vnp_Amount"))) {
             log.error("Amount validation failed in callback for order ID: {}", orderId);
             orderService.recordFailedVnpayTransaction(orderId, vnpParams);
-            return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(URI.create(targetUrl + "?paymentStatus=failed&reason=invalid_amount"))
-                    .build();
+            return ResponseEntity.badRequest().body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), "Invalid payment amount"));
         }
 
         if (paymentStatus == 1) {
             orderService.recordVnpayTransaction(orderId, vnp_TransactionNo, vnpParams);
             log.info("VNPay payment successful for order ID: {}", orderId);
-            return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(URI.create(targetUrl + "?paymentStatus=success"))
+            PaymentResultResponse result = PaymentResultResponse.builder()
+                    .orderId(orderId)
+                    .paymentStatus(PaymentStatus.PAID)
+                    .transactionNo(vnp_TransactionNo)
+                    .amount(order.getTotalAmount())
+                    .bankCode(vnp_BankCode)
+                    .responseCode(vnp_ResponseCode)
+                    .message("Payment successful")
                     .build();
+            return ResponseEntity.ok(ApiResponse.success(result, "Payment successful"));
         } else {
             log.warn("VNPay payment failed or cancelled for order ID: {}, status: {}", orderId, paymentStatus);
             orderService.recordFailedVnpayTransaction(orderId, vnpParams);
-            return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(URI.create(targetUrl + "?paymentStatus=failed"))
+            PaymentResultResponse result = PaymentResultResponse.builder()
+                    .orderId(orderId)
+                    .paymentStatus(PaymentStatus.FAILED)
+                    .transactionNo(vnp_TransactionNo)
+                    .amount(order.getTotalAmount())
+                    .bankCode(vnp_BankCode)
+                    .responseCode(vnp_ResponseCode)
+                    .message("Payment failed or cancelled by user")
                     .build();
+            return ResponseEntity.ok(ApiResponse.success(result, "Payment failed or cancelled"));
         }
     }
 

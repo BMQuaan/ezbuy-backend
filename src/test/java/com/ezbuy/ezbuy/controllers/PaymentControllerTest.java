@@ -59,7 +59,7 @@ class PaymentControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/payments/vnpay-callback: redirects to frontend with success status on valid payment and amount")
+    @DisplayName("GET /api/payments/vnpay-callback: returns 200 OK with success status on valid payment and amount")
     void paymentCallback_Success() throws Exception {
         when(vnpayService.orderReturn(any(HttpServletRequest.class))).thenReturn(1);
         when(orderRepository.findById(101)).thenReturn(Optional.of(sampleOrder));
@@ -67,15 +67,20 @@ class PaymentControllerTest {
         mockMvc.perform(get("/api/payments/vnpay-callback")
                         .param("vnp_TxnRef", "101_1725000000")
                         .param("vnp_TransactionNo", "14555666")
-                        .param("vnp_Amount", "253000000")) // 2,530,000 * 100
-                .andExpect(status().isFound())
-                .andExpect(header().string("Location", "http://localhost:3000/profile/purchasehistory/101?paymentStatus=success"));
+                        .param("vnp_Amount", "253000000")
+                        .param("vnp_BankCode", "NCB")
+                        .param("vnp_ResponseCode", "00")) // 2,530,000 * 100
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.data.paymentStatus").value("PAID"))
+                .andExpect(jsonPath("$.data.orderId").value(101))
+                .andExpect(jsonPath("$.data.transactionNo").value("14555666"));
 
         verify(orderService).recordVnpayTransaction(eq(101), eq("14555666"), anyMap());
     }
 
     @Test
-    @DisplayName("GET /api/payments/vnpay-callback: redirects to frontend with failed status when amount does not match")
+    @DisplayName("GET /api/payments/vnpay-callback: returns 400 Bad Request when amount does not match")
     void paymentCallback_InvalidAmount() throws Exception {
         when(vnpayService.orderReturn(any(HttpServletRequest.class))).thenReturn(1);
         when(orderRepository.findById(101)).thenReturn(Optional.of(sampleOrder));
@@ -84,26 +89,41 @@ class PaymentControllerTest {
                         .param("vnp_TxnRef", "101_1725000000")
                         .param("vnp_TransactionNo", "14555666")
                         .param("vnp_Amount", "100000")) // 1,000 VND instead of 2,530,000 VND
-                .andExpect(status().isFound())
-                .andExpect(header().string("Location", "http://localhost:3000/profile/purchasehistory/101?paymentStatus=failed&reason=invalid_amount"));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message").value("Invalid payment amount"));
 
         verify(orderService).recordFailedVnpayTransaction(eq(101), anyMap());
         verify(orderService, never()).recordVnpayTransaction(any(), any(), any());
     }
 
     @Test
-    @DisplayName("GET /api/payments/vnpay-callback: redirects to frontend with failed status on payment error")
+    @DisplayName("GET /api/payments/vnpay-callback: returns 200 OK with failed payment status on user cancellation")
     void paymentCallback_Failed() throws Exception {
         when(vnpayService.orderReturn(any(HttpServletRequest.class))).thenReturn(0);
         when(orderRepository.findById(101)).thenReturn(Optional.of(sampleOrder));
 
         mockMvc.perform(get("/api/payments/vnpay-callback")
                         .param("vnp_TxnRef", "101_1725000000")
-                        .param("vnp_Amount", "253000000"))
-                .andExpect(status().isFound())
-                .andExpect(header().string("Location", "http://localhost:3000/profile/purchasehistory/101?paymentStatus=failed"));
+                        .param("vnp_Amount", "253000000")
+                        .param("vnp_ResponseCode", "24"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.data.paymentStatus").value("FAILED"))
+                .andExpect(jsonPath("$.data.orderId").value(101));
 
         verify(orderService).recordFailedVnpayTransaction(eq(101), anyMap());
+    }
+
+    @Test
+    @DisplayName("GET /api/payments/vnpay-callback: returns 400 Bad Request if checksum verification fails")
+    void paymentCallback_InvalidChecksum() throws Exception {
+        when(vnpayService.orderReturn(any(HttpServletRequest.class))).thenReturn(-1);
+
+        mockMvc.perform(get("/api/payments/vnpay-callback"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message").value("Invalid Checksum Signature"));
     }
 
     @Test
@@ -112,7 +132,9 @@ class PaymentControllerTest {
         when(vnpayService.orderReturn(any(HttpServletRequest.class))).thenReturn(1);
 
         mockMvc.perform(get("/api/payments/vnpay-callback"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message").value("Order reference is invalid or missing in callback"));
     }
 
     @Test

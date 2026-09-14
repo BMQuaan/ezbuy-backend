@@ -27,7 +27,7 @@ class VNPayServiceTest {
     private final String secretKey = "VNPAY_SECRET_KEY_TEST_123456";
     private final String tmnCode = "EZBUYTMN";
     private final String payUrl = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
-    private final String returnUrl = "http://localhost:8081/api/payments/vnpay-callback";
+    private final String returnUrl = "http://localhost:3000/payment/vnpay-return";
 
     @BeforeEach
     void setUp() {
