@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import com.ezbuy.ezbuy.enums.OrderStatus;
+import com.ezbuy.ezbuy.enums.PaymentStatus;
 
 @Data
 @Builder
@@ -19,7 +20,7 @@ public class OrderDetailResponse {
     private Integer id;
     private LocalDateTime orderDate;
     private OrderStatus status;
-    private com.ezbuy.ezbuy.enums.PaymentStatus paymentStatus;
+    private PaymentStatus paymentStatus;
     private String receiverName;
     private String shippingAddress;
     private String phone;

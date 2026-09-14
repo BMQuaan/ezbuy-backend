@@ -23,6 +23,7 @@ import com.ezbuy.ezbuy.enums.PaymentStatus;
 import com.ezbuy.ezbuy.exceptions.NotFoundException;
 import com.ezbuy.ezbuy.mappers.OrderMapper;
 import com.ezbuy.ezbuy.repositories.*;
+import com.ezbuy.ezbuy.repositories.PaymentTransactionRepository;
 import com.ezbuy.ezbuy.repositories.specifications.OrderSpecification;
 import com.ezbuy.ezbuy.services.CartCleanupService;
 import com.ezbuy.ezbuy.services.OrderService;
@@ -51,7 +52,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderMapper orderMapper;
     private final CartCleanupService cartCleanupService;
     private final VNPayService vnpayService;
-    private final com.ezbuy.ezbuy.repositories.PaymentTransactionRepository paymentTransactionRepository;
+    private final PaymentTransactionRepository paymentTransactionRepository;
 
     private static final BigDecimal EXCHANGE_RATE = new BigDecimal("25300");
 
@@ -81,7 +82,7 @@ public class OrderServiceImpl implements OrderService {
                 .phone(request.getPhone())
                 .note(request.getNote())
                 .status(OrderStatus.PENDING)
-                .paymentStatus(com.ezbuy.ezbuy.enums.PaymentStatus.UNPAID)
+                .paymentStatus(PaymentStatus.UNPAID)
                 .payment(payment)
                 .build();
 

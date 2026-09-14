@@ -6,6 +6,7 @@ import org.hibernate.annotations.NotFound;
 import org.hibernate.annotations.NotFoundAction;
 
 import com.ezbuy.ezbuy.enums.OrderStatus;
+import com.ezbuy.ezbuy.enums.PaymentStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -66,7 +67,7 @@ public class Order {
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_status", nullable = false, length = 20)
     @Builder.Default
-    private com.ezbuy.ezbuy.enums.PaymentStatus paymentStatus = com.ezbuy.ezbuy.enums.PaymentStatus.UNPAID;
+    private PaymentStatus paymentStatus = PaymentStatus.UNPAID;
 
     @Column(name = "subtotal", nullable = false, precision = 15, scale = 2)
     private BigDecimal subtotal;

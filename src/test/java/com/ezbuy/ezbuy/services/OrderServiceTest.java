@@ -60,7 +60,7 @@ class OrderServiceTest {
     private VNPayService vnpayService;
 
     @Mock
-    private com.ezbuy.ezbuy.repositories.PaymentTransactionRepository paymentTransactionRepository;
+    private PaymentTransactionRepository paymentTransactionRepository;
 
     @Mock
     private HttpServletRequest httpServletRequest;
