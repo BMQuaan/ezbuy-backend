@@ -7,10 +7,18 @@
 ALTER TABLE `orders` 
 ADD COLUMN `payment_status` VARCHAR(20) NOT NULL DEFAULT 'UNPAID' AFTER `status`;
 
--- 2. Đồng bộ các đơn hàng VNPay đã từng thanh toán thành công trước đây sang trạng thái PAID
+-- 2. Đồng bộ các đơn hàng VNPay đã từng thanh toán trước đây:
+-- Đơn có giao dịch VNPay thành công và không bị hủy -> PAID
 UPDATE `orders` 
 SET `payment_status` = 'PAID' 
-WHERE `vnp_transaction_no` IS NOT NULL;
+WHERE `vnp_transaction_no` IS NOT NULL 
+  AND `status` <> 'CANCELLED';
+
+-- Đơn có giao dịch VNPay nhưng sau đó bị hủy -> REFUNDED (đã/chờ hoàn tiền)
+UPDATE `orders` 
+SET `payment_status` = 'REFUNDED' 
+WHERE `vnp_transaction_no` IS NOT NULL 
+  AND `status` = 'CANCELLED';
 
 -- 3. Tạo bảng lưu trữ lịch sử và audit log giao dịch thanh toán
 CREATE TABLE IF NOT EXISTS `payment_transactions` (
