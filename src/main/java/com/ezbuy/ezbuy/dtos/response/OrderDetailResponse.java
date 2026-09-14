@@ -19,6 +19,7 @@ public class OrderDetailResponse {
     private Integer id;
     private LocalDateTime orderDate;
     private OrderStatus status;
+    private com.ezbuy.ezbuy.enums.PaymentStatus paymentStatus;
     private String receiverName;
     private String shippingAddress;
     private String phone;

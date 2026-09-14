@@ -32,7 +32,7 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
     @Query("SELECT o FROM Order o " +
            "WHERE o.status = :status " +
            "AND o.orderDate < :expirationTime " +
-           "AND o.vnpTransactionNo IS NULL " +
+           "AND (o.vnpTransactionNo IS NULL OR o.paymentStatus != 'PAID') " +
            "AND UPPER(o.payment.method) = 'VNPAY'")
     List<Order> findExpiredVnpayOrders(
             @Param("status") OrderStatus status, 

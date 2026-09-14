@@ -13,6 +13,7 @@ import com.ezbuy.ezbuy.enums.OrderStatus;
 public class OrderResponse {
     private Integer orderId;
     private OrderStatus status;
+    private com.ezbuy.ezbuy.enums.PaymentStatus paymentStatus;
     private BigDecimal totalAmount;
     private LocalDateTime orderDate;
     private List<OrderItemResponse> items;

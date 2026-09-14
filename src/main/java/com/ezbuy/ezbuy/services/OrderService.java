@@ -16,6 +16,8 @@ public interface OrderService {
     OrderResponse createOrder(CreateOrderRequest request, HttpServletRequest httpRequest);
     String getPaymentUrl(Integer orderId, HttpServletRequest request);
     void recordVnpayTransaction(Integer orderId, String transactionNo);
+    void recordVnpayTransaction(Integer orderId, String transactionNo, java.util.Map<String, String> vnpParams);
+    void recordFailedVnpayTransaction(Integer orderId, java.util.Map<String, String> vnpParams);
     OrderResponse updateOrderStatusByAdmin(Integer orderId, UpdateOrderStatusRequest request);
     OrderResponse cancelMyOrder(Integer orderId);
 

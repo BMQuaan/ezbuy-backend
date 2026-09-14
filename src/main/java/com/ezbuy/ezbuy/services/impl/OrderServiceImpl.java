@@ -19,6 +19,7 @@ import com.ezbuy.ezbuy.dtos.response.OrderSummaryResponse;
 import com.ezbuy.ezbuy.dtos.response.PageResponse;
 import com.ezbuy.ezbuy.entities.*;
 import com.ezbuy.ezbuy.enums.OrderStatus;
+import com.ezbuy.ezbuy.enums.PaymentStatus;
 import com.ezbuy.ezbuy.exceptions.NotFoundException;
 import com.ezbuy.ezbuy.mappers.OrderMapper;
 import com.ezbuy.ezbuy.repositories.*;
@@ -31,7 +32,9 @@ import jakarta.servlet.http.HttpServletRequest;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -48,6 +51,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderMapper orderMapper;
     private final CartCleanupService cartCleanupService;
     private final VNPayService vnpayService;
+    private final com.ezbuy.ezbuy.repositories.PaymentTransactionRepository paymentTransactionRepository;
 
     private static final BigDecimal EXCHANGE_RATE = new BigDecimal("25300");
 
@@ -77,6 +81,7 @@ public class OrderServiceImpl implements OrderService {
                 .phone(request.getPhone())
                 .note(request.getNote())
                 .status(OrderStatus.PENDING)
+                .paymentStatus(com.ezbuy.ezbuy.enums.PaymentStatus.UNPAID)
                 .payment(payment)
                 .build();
 
@@ -173,7 +178,7 @@ public class OrderServiceImpl implements OrderService {
                     }
 
                     boolean isVnpay = "VNPAY".equalsIgnoreCase(order.getPayment().getMethod());
-                    boolean isNotPaid = order.getVnpTransactionNo() == null;
+                    boolean isNotPaid = order.getVnpTransactionNo() == null || order.getPaymentStatus() != PaymentStatus.PAID;
 
                     if (isVnpay && isNotPaid) {
                         throw new IllegalStateException("VNPAY order not yet paid (Missing Transaction No.). Cannot be confirmed!");
@@ -198,15 +203,69 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional
     public void recordVnpayTransaction(Integer orderId, String transactionNo) {
+        recordVnpayTransaction(orderId, transactionNo, Collections.emptyMap());
+    }
+
+    @Override
+    @Transactional
+    public void recordVnpayTransaction(Integer orderId, String transactionNo, Map<String, String> vnpParams) {
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new NotFoundException("Order not found"));
+                .orElseThrow(() -> new NotFoundException("Order not found with id: " + orderId));
                 
         if (order.getStatus() == OrderStatus.PENDING) {
-            // order.setStatus(OrderStatus.CONFIRMED); 
-            order.setVnpTransactionNo(transactionNo); 
+            order.setVnpTransactionNo(transactionNo);
+            order.setPaymentStatus(PaymentStatus.PAID);
             orderRepository.save(order);
+
+            savePaymentTransaction(order, transactionNo, PaymentStatus.PAID, vnpParams);
         }
+    }
+
+    @Override
+    @Transactional
+    public void recordFailedVnpayTransaction(Integer orderId, Map<String, String> vnpParams) {
+        Order order = orderRepository.findById(orderId).orElse(null);
+        if (order != null && order.getPaymentStatus() != PaymentStatus.PAID) {
+            savePaymentTransaction(order, null, PaymentStatus.FAILED, vnpParams);
+        }
+    }
+
+    private void savePaymentTransaction(Order order, String transactionNo, PaymentStatus status, Map<String, String> vnpParams) {
+        String txnRef = vnpParams.getOrDefault("vnp_TxnRef", order.getId() + "_" + System.currentTimeMillis());
+        BigDecimal amount = BigDecimal.ZERO;
+        if (vnpParams.containsKey("vnp_Amount")) {
+            try {
+                amount = new BigDecimal(vnpParams.get("vnp_Amount")).divide(new BigDecimal(100));
+            } catch (Exception ignored) {}
+        } else {
+            amount = order.getTotalAmount().multiply(EXCHANGE_RATE);
+        }
+
+        LocalDateTime payDate = null;
+        if (vnpParams.containsKey("vnp_PayDate")) {
+            try {
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+                payDate = LocalDateTime.parse(vnpParams.get("vnp_PayDate"), formatter);
+            } catch (Exception ignored) {}
+        }
+
+        PaymentTransaction transaction = PaymentTransaction.builder()
+                .order(order)
+                .paymentMethod("VNPAY")
+                .txnRef(txnRef)
+                .transactionNo(transactionNo)
+                .amount(amount)
+                .bankCode(vnpParams.get("vnp_BankCode"))
+                .cardType(vnpParams.get("vnp_CardType"))
+                .responseCode(vnpParams.get("vnp_ResponseCode"))
+                .status(status)
+                .payDate(payDate != null ? payDate : LocalDateTime.now())
+                .rawResponse(vnpParams.toString())
+                .build();
+
+        paymentTransactionRepository.save(transaction);
     }
 
     @Override
