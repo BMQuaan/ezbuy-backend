@@ -65,6 +65,9 @@ class OrderServiceTest {
     @Mock
     private HttpServletRequest httpServletRequest;
 
+    @Mock
+    private com.ezbuy.ezbuy.strategies.stock.StockDeductionContext stockDeductionContext;
+
     @InjectMocks
     private OrderServiceImpl orderService;
 
@@ -165,9 +168,8 @@ class OrderServiceTest {
 
         assertThat(result).isNotNull();
         assertThat(result.getOrderId()).isEqualTo(10);
-        assertThat(sampleProduct.getQuantityInStock()).isEqualTo(8); // 10 - 2
 
-        verify(productRepository).saveAll(anyList());
+        verify(stockDeductionContext).deductStock(any(), eq(savedOrder.getOrderItems()));
         verify(cartRepository).deleteByUser(sampleUser);
     }
 
@@ -335,7 +337,6 @@ class OrderServiceTest {
         orderService.cancelMyOrder(10);
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
-        assertThat(sampleProduct.getQuantityInStock()).isEqualTo(10); // Restored from 8 -> 10
-        verify(productRepository).saveAll(anyList());
+        verify(stockDeductionContext).restoreStock(any(), eq(order.getOrderItems()));
     }
 }

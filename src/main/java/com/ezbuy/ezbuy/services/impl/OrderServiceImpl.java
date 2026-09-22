@@ -30,6 +30,9 @@ import com.ezbuy.ezbuy.services.CartCleanupService;
 import com.ezbuy.ezbuy.services.OrderService;
 import com.ezbuy.ezbuy.services.VNPayService;
 
+import com.ezbuy.ezbuy.enums.StockStrategyType;
+import com.ezbuy.ezbuy.strategies.stock.StockDeductionContext;
+
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.math.BigDecimal;
@@ -54,6 +57,7 @@ public class OrderServiceImpl implements OrderService {
     private final CartCleanupService cartCleanupService;
     private final VNPayService vnpayService;
     private final PaymentTransactionRepository paymentTransactionRepository;
+    private final StockDeductionContext stockDeductionContext;
 
     @Value("${vnpay.currency:VND}")
     private String vnpayCurrency = "VND";
@@ -126,13 +130,9 @@ public class OrderServiceImpl implements OrderService {
         
         Order savedOrder = orderRepository.save(newOrder);
 
-        List<Product> productsToUpdate = new ArrayList<>();
-        for (OrderItem item : savedOrder.getOrderItems()) {
-            Product product = item.getProduct();
-            product.setQuantityInStock(product.getQuantityInStock() - item.getQuantity());
-            productsToUpdate.add(product);
-        }
-        productRepository.saveAll(productsToUpdate);
+        // Deduct stock using the resolved strategy (Header X-Stock-Strategy, param, or default)
+        StockStrategyType strategyType = stockDeductionContext.resolveStrategyType(httpRequest);
+        stockDeductionContext.deductStock(strategyType, savedOrder.getOrderItems());
         
         cartRepository.deleteByUser(currentUser);
 
@@ -379,17 +379,8 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private void restoreProductStock(Order order) {
-        List<Product> productsToUpdate = new ArrayList<>();
-        for (OrderItem item : order.getOrderItems()) {
-            Product product = item.getProduct();
-            if (product != null && product.isActive()) { 
-                int currentStock = product.getQuantityInStock();
-                product.setQuantityInStock(currentStock + item.getQuantity());
-                productsToUpdate.add(product);
-            }
-        }
-        if (!productsToUpdate.isEmpty()) {
-            productRepository.saveAll(productsToUpdate);
+        if (order.getOrderItems() != null && !order.getOrderItems().isEmpty()) {
+            stockDeductionContext.restoreStock(stockDeductionContext.getDefaultStrategyType(), order.getOrderItems());
         }
     }
 

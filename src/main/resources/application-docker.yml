@@ -3,6 +3,10 @@ spring:
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://db:3306/ezbuy?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD}
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:redis}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
 
 ai:
   classification:

@@ -11,7 +11,8 @@ public final class SecurityWhitelist {
             "/api/auth/forgot-password",
             "/api/auth/verify-otp",
             "/api/auth/reset-password",
-            "/api/search/by-image"
+            "/api/search/by-image",
+            "/api/benchmark/**"
     };
 
     public static final String[] PUBLIC_GET_ENDPOINTS = {
