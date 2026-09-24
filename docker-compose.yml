@@ -28,7 +28,26 @@ services:
       - ezbuy-network
 
   # ==========================================
-  # 2. Spring Boot Backend Service
+  # 2. Redis In-Memory Cache & Lock Service
+  # ==========================================
+  redis:
+    image: redis:7-alpine
+    container_name: ezbuy-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ezbuy-network
+
+  # ==========================================
+  # 3. Spring Boot Backend Service
   # ==========================================
   spring-app:
     container_name: ezbuy-spring-service
@@ -44,9 +63,14 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/ezbuy?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      DEFAULT_STOCK_STRATEGY: ${DEFAULT_STOCK_STRATEGY:-ATOMIC_SQL}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - ezbuy-network
@@ -54,6 +78,8 @@ services:
 volumes:
   mysql-data:
     name: ezbuy-mysql-data
+  redis-data:
+    name: ezbuy-redis-data
 
 networks:
   ezbuy-network:

@@ -100,6 +100,24 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(apiResponse, HttpStatus.NOT_FOUND);
     }
 
+    @ExceptionHandler(InsufficientStockException.class)
+    public ResponseEntity<ApiResponse<Map<String, Object>>> handleInsufficientStockException(InsufficientStockException ex) {
+        Map<String, Object> details = new HashMap<>();
+        if (ex.getProductId() != null) {
+            details.put("productId", ex.getProductId());
+            details.put("productName", ex.getProductName());
+            details.put("requestedQuantity", ex.getRequestedQuantity());
+            details.put("availableQuantity", ex.getAvailableQuantity());
+        }
+
+        ApiResponse<Map<String, Object>> apiResponse = ApiResponse.<Map<String, Object>>builder()
+                .status(HttpStatus.BAD_REQUEST.value())
+                .message(ex.getMessage())
+                .data(details.isEmpty() ? null : details)
+                .build();
+        return new ResponseEntity<>(apiResponse, HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
         ex.printStackTrace();

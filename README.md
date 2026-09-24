@@ -1,200 +1,178 @@
-# 🛍️ EZBuy - Backend API cho Nền tảng Thương mại Điện tử
+# 🛍️ EZBuy - Backend API cho Nền tảng Thương mại Điện tử Chịu tải cao
 
 ---
 
 ## I. 📖 Giới thiệu
 
-**EZBuy** là dự án **backend** cho một nền tảng **thương mại điện tử hiện đại**, được xây dựng bằng **Spring Boot**.  
-Dự án cung cấp bộ **API RESTful** hoàn chỉnh để quản lý:
-
-- Người dùng  
-- Sản phẩm  
-- Danh mục  
-- Giỏ hàng  
-- Đơn hàng  
-- ...
-
-Điểm đặc biệt của hệ thống là kiến trúc **microservice**, gồm:
-
-- 🧩 **Service chính (Spring Boot)**: xử lý logic nghiệp vụ thương mại điện tử.  
-- 🧠 **Service AI (FastAPI - Python)**: đảm nhiệm các tác vụ **AI / Machine Learning** (như **tìm kiếm sản phẩm bằng hình ảnh**).
+**EZBuy** là hệ thống **Backend RESTful API** cho nền tảng thương mại điện tử hiện đại, được xây dựng trên nền **Spring Boot 3** và **Java 21**, tích hợp kiến trúc xử lý đồng thời (**High Concurrency Control**), bộ nhớ đệm phân tán **Redis** và dịch vụ trí tuệ nhân tạo **AI Microservice (FastAPI - Python)** hỗ trợ tìm kiếm sản phẩm bằng hình ảnh (Visual Search).
 
 ---
 
-## II. ⚙️ Các tính năng chính
+## II. ⚙️ Các tính năng cốt lõi
 
-### 1️⃣ Xác thực & Bảo mật
-- Đăng ký, đăng nhập, quên mật khẩu (qua OTP email).  
-- Bảo mật với **JWT** (Access Token & Refresh Token) lưu trong **HttpOnly Cookie**.  
-- Tích hợp **Spring Security 6**.
+### 1️⃣ Xác thực & Bảo mật (Authentication & RBAC)
+* Đăng ký, đăng nhập, quên mật khẩu (xác thực OTP qua Email).
+* Bảo mật với **JWT** (Access Token & Refresh Token) lưu trữ an toàn trong **HttpOnly Cookie**, phòng chống tấn công XSS/CSRF.
+* Phân quyền chi tiết theo vai trò (**RBAC**): `CUSTOMER` và `ADMIN`.
 
-### 2️⃣ Phân quyền người dùng (RBAC)
-- **CUSTOMER**: khách hàng thông thường.  
-- **ADMIN**: quản trị viên.  
-→ Hệ thống kiểm soát quyền truy cập chi tiết theo vai trò.
+### 2️⃣ Quản lý Sản phẩm & Danh mục (Catalog Management)
+* CRUD sản phẩm, danh mục, thương hiệu đầy đủ.
+* Cơ chế **xóa mềm (Soft Delete)** thông minh qua Hibernate `@SQLRestriction("is_active = true")`.
+* Quản lý upload media đa phương tiện tích hợp **Cloudinary API**.
+* Tự động sinh đường dẫn thân thiện SEO (slug) với thư viện **Slugify**.
 
-### 3️⃣ Quản lý Người dùng
-- Cập nhật thông tin cá nhân, đổi mật khẩu.  
-- Tải lên ảnh đại diện (tích hợp **Cloudinary**).  
-- Xác thực tài khoản qua OTP.
+### 3️⃣ Kiểm soát Đồng thời & Chống Bán âm kho (High-Concurrency Inventory Control)
+* Triển khai kiến trúc **Strategy Pattern** cho phép cắm rút và chuyển đổi linh hoạt các cơ chế trừ tồn kho qua HTTP Header `X-Stock-Strategy`:
+  * **`NAIVE`**: Cơ chế ban đầu (Read-Modify-Write trên RAM không lock) phục vụ làm đối chứng thực nghiệm cho benchmark.
+  * **`PESSIMISTIC`**: Khóa bi quan `SELECT ... FOR UPDATE` ở tầng Database với cơ chế **tự động sắp xếp ID sản phẩm** nhằm ngăn chặn triệt để hiện tượng Deadlock giữa các transaction giỏ hàng đa mặt hàng.
+  * **`ATOMIC_SQL`**: Câu lệnh SQL nguyên tử `UPDATE products SET quantity = quantity - ? WHERE id = ? AND quantity >= ?` tận dụng trực tiếp Row-level lock của InnoDB, giải phóng kết nối nhanh chóng, an toàn tuyệt đối cho các đơn hàng thông thường.
+  * **`REDIS_LUA`**: Pre-decrement trên RAM của Redis bằng **Lua Script nguyên tử** (`DECRBY`) cho các sự kiện **Flash Sale** lưu lượng lớn; chặn đứng hàng ngàn request hết hàng trong < 1ms, giảm tải 99% áp lực truy vấn cho MySQL.
 
-### 4️⃣ Quản lý Sản phẩm & Danh mục
-- CRUD đầy đủ cho **sản phẩm** và **danh mục**.  
-- **Xóa mềm** (`@SQLRestriction("is_active = true")`) để không mất dữ liệu.  
-- Upload/xóa ảnh sản phẩm với **Cloudinary API**.  
-- Tự động sinh **slug** từ tên sản phẩm bằng thư viện **Slugify**.
+### 4️⃣ Thanh toán Trực tuyến VNPay (Secure Payment Gateway)
+* Tích hợp cổng thanh toán **VNPay** với cơ chế bảo mật chữ ký số **SHA512 Checksum**.
+* Tách biệt rõ ràng 2 luồng:
+  * `/vnpay-callback`: Trả kết quả hiển thị trên giao diện người dùng.
+  * `/vnpay-ipn`: Server-to-Server Webhook chuẩn hóa với tính chất **Idempotency** (chống xử lý trùng lặp giao dịch) và kiểm tra đối soát số tiền thực trả.
 
-### 5️⃣ Quản lý Giỏ hàng
-- Thêm, sửa, xóa sản phẩm trong giỏ hàng.  
-- Tự động xóa sản phẩm khỏi giỏ nếu sản phẩm bị xóa mềm hoặc hết hàng.
-
-### 6️⃣ Quản lý Đơn hàng
-- Thanh toán an toàn với **Pessimistic Locking** → tránh tình trạng “mua trùng hàng”.  
-- Áp dụng **mã giảm giá (promo code)** theo %.  
-- Quản lý **trạng thái đơn hàng**:
-  - ADMIN có thể duyệt đơn.
-  - CUSTOMER có thể hủy đơn.  
-- Tự động **hoàn trả tồn kho** khi đơn bị hủy.
-
-### 7️⃣ Tìm kiếm bằng AI (Visual Search)
-- Endpoint nhận **ảnh tải lên** từ người dùng.  
-- Gửi ảnh đến **service AI (FastAPI)** để **dự đoán danh mục**.  
-- Trả về danh sách gợi ý gồm:
-  - **Top sản phẩm bán chạy nhất** trong danh mục.  
-  - **Top sản phẩm mới nhất** trong danh mục.  
-- Nếu AI không hoạt động hoặc không có dữ liệu → fallback sang:
-  - **Top sản phẩm bán chạy và mới nhất toàn hệ thống**.
-
-### 8️⃣ Kiến trúc & Kỹ thuật
-- Sử dụng **DTOs + MapStruct** để ánh xạ dữ liệu.  
-- **JPA Specifications** cho tìm kiếm linh hoạt.  
-- **GlobalExceptionHandler** cho response lỗi đồng nhất.  
-- **Event Listener** tự động dọn giỏ hàng khi sản phẩm bị vô hiệu hóa.
+### 5️⃣ Tìm kiếm Bằng Trí tuệ Nhân tạo (AI Visual Search)
+* Tiếp nhận ảnh tải lên từ người dùng, gọi vi dịch vụ **FastAPI (Python)** phân tích đặc trưng ảnh và dự đoán danh mục sản phẩm.
+* Cơ chế tự động Fallback linh hoạt: Nếu service AI quá tải hoặc không có dữ liệu, hệ thống tự động fallback sang gợi ý sản phẩm bán chạy nhất hệ thống.
 
 ---
 
 ## III. 🧰 Công nghệ sử dụng (Tech Stack)
 
-| Thành phần | Công nghệ |
-|-------------|------------|
-| **Ngôn ngữ chính** | Java 21 |
-| **Framework Backend** | Spring Boot 3.x |
-| **Bảo mật** | Spring Security 6 (JWT) |
-| **ORM** | Spring Data JPA + Specifications |
-| **Gửi email** | Spring Mail + Thymeleaf |
-| **Mapper** | MapStruct |
-| **Thư viện tiện ích** | Lombok, Slugify |
-| **CSDL chính** | MySQL 8 |
-| **Lưu trữ hình ảnh** | Cloudinary |
-| **Service AI** | Python (FastAPI + TensorFlow/Keras hoặc PyTorch) |
+| Thành phần | Công nghệ / Phiên bản |
+|---|---|
+| **Ngôn ngữ chính** | Java 21 (LTS) |
+| **Framework Backend** | Spring Boot 3.5.6 |
+| **Bảo mật** | Spring Security 6, JJWT 0.13 |
+| **Cơ sở dữ liệu** | MySQL 8.0 (InnoDB) |
+| **Bộ nhớ đệm & Khóa phân tán** | Redis 7 (Alpine) + Spring Data Redis |
+| **Kiểm thử hiệu năng (Stress Test)** | Grafana k6, JUnit 5, Mockito |
+| **Object Mapping** | MapStruct 1.6, Lombok |
+| **Lưu trữ hình ảnh** | Cloudinary API |
+| **Gửi email thông báo** | Spring Mail + Thymeleaf Engine |
+| **Dịch vụ AI Microservice** | Python 3 + FastAPI + PyTorch/TensorFlow |
+| **Frontend Client** | Next.js 15 + TypeScript + TailwindCSS |
+| **Đóng gói & Triển khai** | Docker, Docker Compose |
 
 ---
 
-## IV. 🏗️ Cấu trúc dự án
+## IV. 🏗️ Cấu trúc dự án Backend
 
 ```
 com.ezbuy.ezbuy
 │
-├── config/           # Cấu hình (SecurityConfig, CorsConfig, CloudinaryConfig,...)
-├── constants/        # Các hằng số toàn cục
-├── controllers/      # REST Controllers (API Endpoints)
-├── dtos/             # Data Transfer Objects (Request/Response)
-│   ├── request/
-│   └── response/
-├── entities/         # Thực thể JPA (User, Product, Category, Order,...)
-├── enums/            # Các Enum (OrderStatus, Role, LoginType,...)
-├── events/           # Event & Listener (ProductDeactivatedEvent, CartCleanupListener)
-├── exceptions/       # Xử lý ngoại lệ (GlobalExceptionHandler, CustomException,...)
-├── filters/          # JWT Authentication Filter
-├── mappers/          # Ánh xạ DTO <-> Entity (MapStruct)
-├── repositories/     # JPA Repository + Specifications
-│   └── specifications/
-└── services/         # Business Logic
-    └── impl/         # Triển khai cụ thể của các service
+├── config/              # Cấu hình hệ thống (Security, Redis, Cors, Cloudinary,...)
+├── constants/           # Hằng số, danh sách Security Whitelist
+├── controllers/         # REST API Controllers (Order, Product, Benchmark, Payment,...)
+├── dtos/                # Data Transfer Objects (Request / Response)
+├── entities/            # JPA Entities (Product, Order, User, PaymentTransaction,...)
+├── enums/               # Enums (StockStrategyType, OrderStatus, PaymentStatus,...)
+├── events/              # Event-Driven nội bộ (ProductDeactivatedEvent, CartCleanupListener)
+├── exceptions/          # Xử lý ngoại lệ tập trung (GlobalExceptionHandler, InsufficientStockException)
+├── filter/              # Bộ lọc JWT Authentication Filter
+├── mappers/             # Ánh xạ DTO <-> Entity (MapStruct)
+├── repositories/        # Spring Data JPA Repositories & Specifications
+├── services/            # Business Logic Services & Implementations
+└── strategies/          # Strategy Pattern kiến trúc kiểm soát đồng thời
+    └── stock/
+        ├── StockDeductionStrategy.java       # Interface chung
+        ├── StockDeductionContext.java        # Bộ điều phối chiến lược động
+        └── impl/
+            ├── NaiveStockStrategy.java       # Chiến lược cũ (Baseline)
+            ├── PessimisticStockStrategy.java # Khóa bi quan DB
+            ├── AtomicSqlStockStrategy.java   # Cập nhật SQL nguyên tử
+            └── RedisLuaStockStrategy.java    # Khóa RAM Redis Flash Sale
 ```
 
 ---
 
-## V. ⚡ Hướng dẫn cài đặt và chạy
+## V. ⚡ Hướng dẫn cài đặt & Khởi động
 
----
-
-### 1️⃣ Cài đặt Database (MySQL)
-1. Đảm bảo **MySQL Server** đang chạy (mặc định: `port 3306`).  
-2. Tạo cơ sở dữ liệu mới:
-   ```sql
-   CREATE DATABASE ezbuy;
-   ```
-3. Import dữ liệu từ file SQL dump (ezbuy_database.sql)
-
----
-
-### 2️⃣ Cấu hình Spring Boot
-Mở file `src/main/resources/application.properties`  
-(hoặc tạo file `application-local.properties`) và cập nhật thông tin:
-
-```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/ezbuy
-spring.datasource.username=root
-spring.datasource.password=your_password
-
-ai.classification.service.url=http://localhost:8000/predict
-
-cloudinary.cloud-name=your_cloud_name
-cloudinary.api-key=your_api_key
-cloudinary.api-secret=your_api_secret
-
-spring.mail.username=your_email@example.com
-spring.mail.password=your_email_password
-
-app.jwt.secret=your_jwt_secret_key
-```
-
----
-
-### 3️⃣ Chạy ứng dụng Spring Boot
-Có thể chạy bằng Maven hoặc IDE:
-
-#### Cách 1: Maven CLI
+### 1️⃣ Chuẩn bị biến môi trường
+Tạo file `.env` tại thư mục gốc backend (dựa trên mẫu `.env.example`):
 ```bash
-mvn spring-boot:run
+cp .env.example .env
+```
+Cấu hình các thông số cần thiết (mật khẩu DB, JWT Secret, Redis, Cloudinary, VNPay).
+
+---
+
+### 2️⃣ Cách 1: Khởi động 1-Click bằng Docker Compose (Khuyên dùng)
+Toàn bộ hệ sinh thái (MySQL, Redis, Spring Boot Backend) được đóng gói sẵn trong `docker-compose.yml`:
+
+```bash
+# Khởi động toàn bộ các service
+docker compose up -d
+
+# Xem log thời gian thực của backend
+docker compose logs -f spring-app
+```
+* **API Backend:** `http://localhost:8081`
+* **MySQL Database:** `localhost:3307`
+* **Redis Service:** `localhost:6379`
+
+---
+
+### 3️⃣ Cách 2: Khởi động Local từng phần (Cho môi trường phát triển)
+1. Khởi động hạ tầng Database và Redis:
+   ```bash
+   docker compose up -d db redis
+   ```
+2. Chạy ứng dụng Spring Boot bằng Maven Wrapper:
+   ```bash
+   # Trên Windows:
+   .\mvnw.cmd spring-boot:run
+
+   # Trên Linux/macOS:
+   ./mvnw spring-boot:run
+   ```
+
+---
+
+## 📊 VI. Kiểm thử Chịu tải & Benchmark với k6
+
+Hệ thống đi kèm kịch bản benchmark chuẩn **k6** tại thư mục [k6/benchmark-stock.js](k6/benchmark-stock.js).  
+Kịch bản giả lập **50 Virtual Users đồng thời gửi 1,000 requests** tranh mua **10 sản phẩm cuối cùng** trong kho:
+
+```bash
+# 1. Đo đạc cơ chế cũ (đối chứng lỗi bán âm kho):
+k6 run -e STRATEGY=NAIVE k6/benchmark-stock.js
+
+# 2. Đo đạc cơ chế Atomic SQL (Zero Overselling):
+k6 run -e STRATEGY=ATOMIC_SQL k6/benchmark-stock.js
+
+# 3. Đo đạc cơ chế Pessimistic Locking:
+k6 run -e STRATEGY=PESSIMISTIC k6/benchmark-stock.js
+
+# 4. Đo đạc cơ chế Flash Sale (Redis Lua Script - Tốc độ cao nhất):
+k6 run -e STRATEGY=REDIS_LUA k6/benchmark-stock.js
 ```
 
-#### Cách 2: IntelliJ / VS Code
-Chọn file chính → **Run as Spring Boot App**
+### 📈 Bảng đối sánh số liệu thực nghiệm:
+
+| Chiến lược (Strategy) | Số đơn bán (Kho = 10) | Bán vượt (Overselling) | P95 Latency | Throughput (RPS) |
+|---|:---:|:---:|:---:|:---:|
+| **NAIVE** (Cũ) | ❌ **92 đơn** | ❌ **Bán lố 82 đơn** | 36.5ms | ~2,719 req/s |
+| **PESSIMISTIC** | ✅ **10 đơn** | ✅ **0 (Zero)** | 47.1ms | ~1,968 req/s |
+| **ATOMIC_SQL** | ✅ **10 đơn** | ✅ **0 (Zero)** | 61.0ms | ~1,176 req/s |
+| **REDIS_LUA** (Flash Sale) | ✅ **10 đơn** | ✅ **0 (Zero)** | 🚀 **29.3ms** | 🚀 **~2,250 req/s** |
 
 ---
 
-## VI. 🧪 Kiểm thử API
+## 🧪 VII. Chạy Kiểm thử Tự động (Automated Tests)
 
-Sau khi khởi động thành công:
-
-| Thành phần | URL |
-|-------------|------|
-| **API Root** | `http://localhost:80818081/api` |
-
-### Ví dụ Endpoint:
-- Đăng ký tài khoản: `POST /api/v1/auth/register`  
-- Đăng nhập: `POST /api/v1/auth/login`  
-- Tìm kiếm bằng ảnh: `POST /api/v1/visual-search`  
+Chạy toàn bộ bộ test tích hợp và kiểm thử đa luồng (`ConcurrentStockDeductionTest`):
+```bash
+.\mvnw.cmd test
+```
 
 ---
 
-## VII. 🔮 Hướng phát triển tương lai
-
-✅ Tích hợp **Swagger (SpringDoc OpenAPI)** để sinh tài liệu API tự động.  
-✅ Thêm **Docker Compose** để chạy toàn bộ hệ thống (Spring Boot + FastAPI + MySQL).  
-✅ Dùng **Redis Cache** để cache kết quả AI và sản phẩm hot.  
-✅ Giám sát hệ thống với **Spring Boot Actuator + Prometheus + Grafana**.  
-✅ Chuyển sang giao tiếp **asynchronous** giữa service Java và Python (Kafka / RabbitMQ).
-
----
-
-## ❤️ Tác giả
-Dự án được phát triển bởi nhóm phát triển độc lập của **EZBuy**.  
-Nếu bạn muốn hợp tác hoặc đóng góp, hãy liên hệ qua email trong cấu hình dự án.
-
----
-
-> 💡 **EZBuy** là nền tảng thương mại điện tử hiện đại, an toàn và thông minh,  
-> kết hợp giữa **Spring Boot** & **AI FastAPI** để mang đến trải nghiệm mua sắm tối ưu nhất.
+## 🔮 VIII. Lộ trình phát triển tiếp theo (Roadmap)
+- [x] **Phase 1:** Concurrency Control với Strategy Pattern (Zero Overselling) & k6 Benchmark.
+- [ ] **Phase 2:** Caching Đa tầng với Redis (Cache-Aside, TTL Jitter chống Avalanche, chống Cache Stampede).
+- [ ] **Phase 3:** Event-Driven Architecture với Message Queue (RabbitMQ / Kafka) & Transactional Outbox Pattern.
+- [ ] **Phase 4:** Observability (Spring Boot Actuator + Prometheus + Grafana Dashboard + Distributed Tracing).
