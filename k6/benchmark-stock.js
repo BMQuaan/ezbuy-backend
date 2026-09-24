@@ -13,18 +13,20 @@ const STRATEGY = __ENV.STRATEGY || 'ATOMIC_SQL'; // NAIVE | PESSIMISTIC | ATOMIC
 const PRODUCT_ID = __ENV.PRODUCT_ID || '2';
 const QUANTITY = __ENV.QUANTITY || '1';
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8081';
+const VUS = parseInt(__ENV.VUS || '50');
+const ITERATIONS = parseInt(__ENV.ITERATIONS || '1000');
 
 export const options = {
     scenarios: {
         flash_sale_simulation: {
             executor: 'shared-iterations',
-            vus: parseInt(__ENV.VUS || '50'),
-            iterations: parseInt(__ENV.ITERATIONS || '1000'),
+            vus: VUS,
+            iterations: ITERATIONS,
             maxDuration: '30s',
         },
     },
     thresholds: {
-        http_req_failed: ['rate<0.01'], // less than 1% 5xx errors
+        unexpected_errors: ['count<1'], // Zero unexpected 5xx errors
         http_req_duration: ['p(95)<500'], // 95% of requests should be below 500ms
     },
 };
@@ -34,8 +36,8 @@ export function setup() {
     console.log(`🚀 BẮT ĐẦU BENCHMARK KIỂM TRA TRANH CHẤP TỒN KHO (FLASH SALE)`);
     console.log(`👉 Chiến lược kiểm thử: ${STRATEGY}`);
     console.log(`👉 Sản phẩm ID: ${PRODUCT_ID} | Số lượng mỗi request: ${QUANTITY}`);
-    console.log(`👉 Virtual Users (VUs): ${options.scenarios.flash_sale_simulation.vus}`);
-    console.log(`👉 Tổng số requests (Iterations): ${options.scenarios.flash_sale_simulation.iterations}`);
+    console.log(`👉 Virtual Users (VUs): ${VUS}`);
+    console.log(`👉 Tổng số requests (Iterations): ${ITERATIONS}`);
     console.log(`===========================================================`);
 
     // Reset stock before running the test (e.g. stock = 10)
