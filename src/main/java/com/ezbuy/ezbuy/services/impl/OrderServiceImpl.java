@@ -3,6 +3,8 @@ package com.ezbuy.ezbuy.services.impl;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -58,6 +60,7 @@ public class OrderServiceImpl implements OrderService {
     private final VNPayService vnpayService;
     private final PaymentTransactionRepository paymentTransactionRepository;
     private final StockDeductionContext stockDeductionContext;
+    private final CacheManager cacheManager;
 
     @Value("${vnpay.currency:VND}")
     private String vnpayCurrency = "VND";
@@ -133,6 +136,7 @@ public class OrderServiceImpl implements OrderService {
         // Deduct stock using the resolved strategy (Header X-Stock-Strategy, param, or default)
         StockStrategyType strategyType = stockDeductionContext.resolveStrategyType(httpRequest);
         stockDeductionContext.deductStock(strategyType, savedOrder.getOrderItems());
+        evictProductCaches(savedOrder.getOrderItems());
         
         cartRepository.deleteByUser(currentUser);
 
@@ -381,6 +385,26 @@ public class OrderServiceImpl implements OrderService {
     private void restoreProductStock(Order order) {
         if (order.getOrderItems() != null && !order.getOrderItems().isEmpty()) {
             stockDeductionContext.restoreStock(stockDeductionContext.getDefaultStrategyType(), order.getOrderItems());
+            evictProductCaches(order.getOrderItems());
+        }
+    }
+
+    private void evictProductCaches(List<OrderItem> orderItems) {
+        if (orderItems == null || orderItems.isEmpty()) return;
+        try {
+            Cache productDetailCache = cacheManager.getCache("product_detail");
+            Cache topSellingCache = cacheManager.getCache("products_top_selling");
+            if (productDetailCache != null) {
+                for (OrderItem item : orderItems) {
+                    if (item.getProduct() != null && item.getProduct().getId() != null) {
+                        productDetailCache.evict(item.getProduct().getId());
+                    }
+                }
+            }
+            if (topSellingCache != null) {
+                topSellingCache.clear();
+            }
+        } catch (Exception ignored) {
         }
     }
 

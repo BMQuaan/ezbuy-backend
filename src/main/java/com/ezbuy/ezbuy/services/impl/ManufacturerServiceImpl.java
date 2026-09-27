@@ -6,6 +6,7 @@ import com.ezbuy.ezbuy.mappers.ManufacturerMapper;
 import com.ezbuy.ezbuy.repositories.ManufacturerRepository;
 import com.ezbuy.ezbuy.services.ManufacturerService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional; // Thêm import
 
@@ -20,7 +21,8 @@ public class ManufacturerServiceImpl implements ManufacturerService {
     private final ManufacturerMapper manufacturerMapper;
 
     @Override
-    @Transactional(readOnly = true) 
+    @Transactional(readOnly = true)
+    @Cacheable(value = "manufacturers", key = "'all'", sync = true)
     public List<ManufacturerResponse> getAllManufacturers() {
         List<Manufacturer> manufacturers = manufacturerRepository.findAll();
         
