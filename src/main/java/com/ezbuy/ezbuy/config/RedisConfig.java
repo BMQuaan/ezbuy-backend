@@ -5,11 +5,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.annotation.CachingConfigurer;
 import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.interceptor.CacheErrorHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.cache.RedisCache;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.cache.RedisCacheWriter;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -20,11 +26,42 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Configuration
 @EnableCaching
-public class RedisConfig {
+@Slf4j
+public class RedisConfig implements CachingConfigurer {
+
+    @Override
+    public CacheErrorHandler errorHandler() {
+        return new CacheErrorHandler() {
+            @Override
+            public void handleCacheGetError(RuntimeException exception, Cache cache, Object key) {
+                log.warn("[REDIS_CACHE] Redis is unavailable during GET for key '{}' in cache '{}'. Gracefully falling back to MySQL: {}",
+                        key, cache != null ? cache.getName() : "unknown", exception.getMessage());
+            }
+
+            @Override
+            public void handleCachePutError(RuntimeException exception, Cache cache, Object key, Object value) {
+                log.warn("[REDIS_CACHE] Redis is unavailable during PUT for key '{}' in cache '{}'. Ignored: {}",
+                        key, cache != null ? cache.getName() : "unknown", exception.getMessage());
+            }
+
+            @Override
+            public void handleCacheEvictError(RuntimeException exception, Cache cache, Object key) {
+                log.warn("[REDIS_CACHE] Redis is unavailable during EVICT for key '{}' in cache '{}'. Ignored: {}",
+                        key, cache != null ? cache.getName() : "unknown", exception.getMessage());
+            }
+
+            @Override
+            public void handleCacheClearError(RuntimeException exception, Cache cache) {
+                log.warn("[REDIS_CACHE] Redis is unavailable during CLEAR for cache '{}'. Ignored: {}",
+                        cache != null ? cache.getName() : "unknown", exception.getMessage());
+            }
+        };
+    }
 
     @Bean
     public GenericJackson2JsonRedisSerializer genericJackson2JsonRedisSerializer() {
@@ -84,10 +121,30 @@ public class RedisConfig {
         // Products top selling: 15 minutes + random jitter (±2m)
         initialConfigs.put("products_top_selling", defaultCacheConfig.entryTtl(ttlWithJitter(Duration.ofMinutes(15), 120)));
 
-        return RedisCacheManager.builder(connectionFactory)
-                .cacheDefaults(defaultCacheConfig)
-                .withInitialCacheConfigurations(initialConfigs)
-                .build();
+        RedisCacheWriter cacheWriter = RedisCacheWriter.nonLockingRedisCacheWriter(connectionFactory);
+
+        return new RedisCacheManager(cacheWriter, defaultCacheConfig, initialConfigs) {
+            @Override
+            protected RedisCache createRedisCache(String name, RedisCacheConfiguration cacheConfig) {
+                RedisCacheConfiguration configToUse = cacheConfig != null ? cacheConfig : defaultCacheConfig;
+                return new RedisCache(name, cacheWriter, configToUse) {
+                    @Override
+                    public <T> T get(Object key, Callable<T> valueLoader) {
+                        try {
+                            return super.get(key, valueLoader);
+                        } catch (Exception e) {
+                            log.warn("[REDIS_CACHE] Redis is offline for key '{}' in cache '{}' (sync=true). Gracefully falling back to MySQL: {}",
+                                    key, name, e.getMessage());
+                            try {
+                                return valueLoader.call();
+                            } catch (Exception ex) {
+                                throw new ValueRetrievalException(key, valueLoader, ex);
+                            }
+                        }
+                    }
+                };
+            }
+        };
     }
 
     /**

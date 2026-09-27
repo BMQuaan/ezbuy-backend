@@ -7,6 +7,9 @@ spring:
     redis:
       host: ${SPRING_DATA_REDIS_HOST:redis}
       port: ${SPRING_DATA_REDIS_PORT:6379}
+      timeout: 1000ms
+      lettuce:
+        shutdown-timeout: 100ms
 
 ai:
   classification:

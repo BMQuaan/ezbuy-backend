@@ -35,6 +35,9 @@ spring:
     redis:
       host: ${REDIS_HOST:${SPRING_DATA_REDIS_HOST:localhost}}
       port: ${REDIS_PORT:${SPRING_DATA_REDIS_PORT:6379}}
+      timeout: 1000ms
+      lettuce:
+        shutdown-timeout: 100ms
 
 app:
   jwt:
