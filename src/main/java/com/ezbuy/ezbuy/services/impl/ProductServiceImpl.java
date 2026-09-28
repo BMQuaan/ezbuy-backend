@@ -19,6 +19,9 @@ import com.ezbuy.ezbuy.services.ProductService;
 import com.github.slugify.Slugify;
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -96,6 +99,8 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    @Cacheable(value = "product_detail", key = "#id", condition = "!T(com.ezbuy.ezbuy.utils.SecurityUtils).isAdmin()", unless = "#result == null")
     public Object getProductById(int id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Product not found with id: " + id));
@@ -113,6 +118,10 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "product_detail", key = "#id"),
+            @CacheEvict(value = "products_top_selling", allEntries = true)
+    })
     public ProductResponse updateProduct(int id, ProductRequest request, MultipartFile file) {
         Product existingProduct = productRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Product not found with id: " + id));
@@ -147,6 +156,10 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "product_detail", key = "#id"),
+            @CacheEvict(value = "products_top_selling", allEntries = true)
+    })
     public void deleteProduct(int id) {
         Product productToDelete = productRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Product not found with id: " + id));

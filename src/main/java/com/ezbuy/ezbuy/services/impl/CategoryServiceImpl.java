@@ -13,6 +13,9 @@ import com.ezbuy.ezbuy.services.CloudinaryService;
 import com.github.slugify.Slugify;
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -40,6 +43,10 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "category_tree", allEntries = true),
+            @CacheEvict(value = "categories", allEntries = true)
+    })
     public CategoryResponse createCategory(CategoryRequest request, MultipartFile file) {
         if (categoryRepository.existsByName(request.getName())) {
             throw new DataIntegrityViolationException("Category name '" + request.getName() + "' already exists for an active category.");
@@ -101,6 +108,10 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "category_tree", allEntries = true),
+            @CacheEvict(value = "categories", allEntries = true)
+    })
     public CategoryResponse updateCategory(int id, CategoryRequest request, MultipartFile file) {
         Category existingCategory = categoryRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Category not found"));
@@ -145,6 +156,10 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "category_tree", allEntries = true),
+            @CacheEvict(value = "categories", allEntries = true)
+    })
     public void deleteCategory(int id) {
         Category categoryToDelete = categoryRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Category not found with id: " + id));
@@ -162,7 +177,8 @@ public class CategoryServiceImpl implements CategoryService {
         categoryRepository.save(categoryToDelete);
     }
 
-     @Override
+    @Override
+    @Cacheable(value = "category_tree", key = "'tree'", sync = true)
     public List<CategoryTreeResponse> getCategoryTree() {
         List<Category> rootCategories = categoryRepository.findRootCategoriesWithChildren();
 

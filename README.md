@@ -28,13 +28,20 @@
   * **`ATOMIC_SQL`**: Câu lệnh SQL nguyên tử `UPDATE products SET quantity = quantity - ? WHERE id = ? AND quantity >= ?` tận dụng trực tiếp Row-level lock của InnoDB, giải phóng kết nối nhanh chóng, an toàn tuyệt đối cho các đơn hàng thông thường.
   * **`REDIS_LUA`**: Pre-decrement trên RAM của Redis bằng **Lua Script nguyên tử** (`DECRBY`) cho các sự kiện **Flash Sale** lưu lượng lớn; chặn đứng hàng ngàn request hết hàng trong < 1ms, giảm tải 99% áp lực truy vấn cho MySQL.
 
-### 4️⃣ Thanh toán Trực tuyến VNPay (Secure Payment Gateway)
+### 4️⃣ Bộ nhớ đệm Tốc độ cao Redis (High-Performance Redis Caching)
+* Triển khai mô hình **Cache-Aside Pattern** cho các API đọc tải lớn: xem cây danh mục (`category_tree`), thông tin thương hiệu (`manufacturers`), chi tiết sản phẩm (`product_detail`), và sản phẩm bán chạy.
+* **Serialization chuẩn hóa**: Sử dụng `GenericJackson2JsonRedisSerializer` với Jackson polymorphic type handling (`WRAPPER_ARRAY`) và `JavaTimeModule` giúp lưu trữ và khôi phục dữ liệu JSON linh hoạt, dễ quan sát trên Redis CLI.
+* **Chống nghẽn dòng Cache Stampede (Dogpile Effect)**: Ứng dụng thuộc tính `sync = true` trên `@Cacheable` để kích hoạt cơ chế Mutex Lock nội bộ; khi cache miss, duy nhất 1 luồng truy vấn MySQL, các luồng còn lại chờ và tái sử dụng kết quả từ Redis cache.
+* **Chống sập tầng Cache Avalanche (TTL Jitter)**: Bổ sung độ lệch thời gian sống ngẫu nhiên (random ±5 phút) cho từng cache type, ngăn ngừa hàng triệu key cùng lúc hết hạn gây shock tải lên Database.
+* **Chủ động làm mới Cache Invalidation (`@CacheEvict`)**: Tự động dọn sạch cache ngay khi Admin cập nhật danh mục, sản phẩm hoặc khi người dùng tạo/hủy đơn hàng làm thay đổi số lượng tồn kho.
+
+### 5️⃣ Thanh toán Trực tuyến VNPay (Secure Payment Gateway)
 * Tích hợp cổng thanh toán **VNPay** với cơ chế bảo mật chữ ký số **SHA512 Checksum**.
 * Tách biệt rõ ràng 2 luồng:
   * `/vnpay-callback`: Trả kết quả hiển thị trên giao diện người dùng.
   * `/vnpay-ipn`: Server-to-Server Webhook chuẩn hóa với tính chất **Idempotency** (chống xử lý trùng lặp giao dịch) và kiểm tra đối soát số tiền thực trả.
 
-### 5️⃣ Tìm kiếm Bằng Trí tuệ Nhân tạo (AI Visual Search)
+### 6️⃣ Tìm kiếm Bằng Trí tuệ Nhân tạo (AI Visual Search)
 * Tiếp nhận ảnh tải lên từ người dùng, gọi vi dịch vụ **FastAPI (Python)** phân tích đặc trưng ảnh và dự đoán danh mục sản phẩm.
 * Cơ chế tự động Fallback linh hoạt: Nếu service AI quá tải hoặc không có dữ liệu, hệ thống tự động fallback sang gợi ý sản phẩm bán chạy nhất hệ thống.
 
@@ -162,9 +169,26 @@ k6 run -e STRATEGY=REDIS_LUA k6/benchmark-stock.js
 
 ---
 
+### 🚀 Benchmark Hiệu năng Đọc Redis Caching (`k6/benchmark-cache.js`):
+
+Kịch bản đo năng lực chịu tải đọc (Read Throughput) và độ trễ (Latency) cho cây danh mục và chi tiết sản phẩm:
+
+```bash
+# 1. Đo đọc Cây Danh mục (Category Tree):
+k6 run -e TARGET=CATEGORY_TREE -e VUS=50 -e DURATION=15s k6/benchmark-cache.js
+
+# 2. Đo đọc Chi tiết Sản phẩm (Product Detail):
+k6 run -e TARGET=PRODUCT_DETAIL -e PRODUCT_ID=2 -e VUS=100 -e DURATION=15s k6/benchmark-cache.js
+
+# 3. Đo hỗn hợp (50% Category Tree, 50% Product Detail):
+k6 run -e TARGET=MIXED -e VUS=50 -e ITERATIONS=2000 k6/benchmark-cache.js
+```
+
+---
+
 ## 🧪 VII. Chạy Kiểm thử Tự động (Automated Tests)
 
-Chạy toàn bộ bộ test tích hợp và kiểm thử đa luồng (`ConcurrentStockDeductionTest`):
+Chạy toàn bộ bộ test tích hợp (`RedisCacheIntegrationTest`), kiểm thử tuần tự hóa (`RedisSerializationTest`), và kiểm thử tranh chấp đa luồng (`ConcurrentStockDeductionTest`):
 ```bash
 .\mvnw.cmd test
 ```
@@ -173,6 +197,6 @@ Chạy toàn bộ bộ test tích hợp và kiểm thử đa luồng (`Concurren
 
 ## 🔮 VIII. Lộ trình phát triển tiếp theo (Roadmap)
 - [x] **Phase 1:** Concurrency Control với Strategy Pattern (Zero Overselling) & k6 Benchmark.
-- [ ] **Phase 2:** Caching Đa tầng với Redis (Cache-Aside, TTL Jitter chống Avalanche, chống Cache Stampede).
+- [x] **Phase 2:** Caching Đa tầng với Redis (Cache-Aside, TTL Jitter chống Avalanche, chống Cache Stampede với sync=true, k6 Read Benchmark).
 - [ ] **Phase 3:** Event-Driven Architecture với Message Queue (RabbitMQ / Kafka) & Transactional Outbox Pattern.
 - [ ] **Phase 4:** Observability (Spring Boot Actuator + Prometheus + Grafana Dashboard + Distributed Tracing).
