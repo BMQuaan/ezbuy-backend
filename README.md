@@ -83,15 +83,16 @@ com.ezbuy.ezbuy
 ├── mappers/             # Ánh xạ DTO <-> Entity (MapStruct)
 ├── repositories/        # Spring Data JPA Repositories & Specifications
 ├── services/            # Business Logic Services & Implementations
-└── strategies/          # Strategy Pattern kiến trúc kiểm soát đồng thời
-    └── stock/
-        ├── StockDeductionStrategy.java       # Interface chung
-        ├── StockDeductionContext.java        # Bộ điều phối chiến lược động
-        └── impl/
-            ├── NaiveStockStrategy.java       # Chiến lược cũ (Baseline)
-            ├── PessimisticStockStrategy.java # Khóa bi quan DB
-            ├── AtomicSqlStockStrategy.java   # Cập nhật SQL nguyên tử
-            └── RedisLuaStockStrategy.java    # Khóa RAM Redis Flash Sale
+├── strategies/          # Strategy Pattern kiến trúc kiểm soát đồng thời
+│   └── stock/
+│       ├── StockDeductionStrategy.java       # Interface chung
+│       ├── StockDeductionContext.java        # Bộ điều phối chiến lược động
+│       └── impl/
+│           ├── NaiveStockStrategy.java       # Chiến lược cũ (Baseline)
+│           ├── PessimisticStockStrategy.java # Khóa bi quan DB
+│           ├── AtomicSqlStockStrategy.java   # Cập nhật SQL nguyên tử
+│           └── RedisLuaStockStrategy.java    # Khóa RAM Redis Flash Sale
+└── utils/               # Tiện ích bảo mật & hệ thống (SecurityUtils,...)
 ```
 
 ---
