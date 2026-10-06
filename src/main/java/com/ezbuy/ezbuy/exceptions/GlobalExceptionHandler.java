@@ -53,6 +53,12 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(apiResponse, HttpStatus.CONFLICT);
     }
 
+    @ExceptionHandler(DuplicateRequestException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDuplicateRequestException(DuplicateRequestException ex) {
+        ApiResponse<Void> apiResponse = ApiResponse.error(HttpStatus.CONFLICT.value(), ex.getMessage());
+        return new ResponseEntity<>(apiResponse, HttpStatus.CONFLICT);
+    }
+
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ApiResponse<Void>> handleBadCredentialsException(BadCredentialsException ex) {
         ApiResponse<Void> apiResponse = ApiResponse.error(HttpStatus.UNAUTHORIZED.value(),
