@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import com.ezbuy.ezbuy.annotations.Idempotent;
 import com.ezbuy.ezbuy.dtos.request.CreateOrderRequest;
 import com.ezbuy.ezbuy.dtos.request.UpdateOrderStatusRequest;
 import com.ezbuy.ezbuy.dtos.response.AdminOrderSummaryResponse;
@@ -35,6 +36,7 @@ public class OrderController {
 
     @PostMapping
     @PreAuthorize("isAuthenticated()")
+    @Idempotent
     public ResponseEntity<ApiResponse<OrderResponse>> createOrder(
             @Valid @RequestBody CreateOrderRequest request,
             HttpServletRequest httpRequest 
